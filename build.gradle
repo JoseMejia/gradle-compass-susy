@@ -1,0 +1,142 @@
+dependencies {
+}
+
+ext {
+    configFile = file("demo") //for-windows
+    cssDir = file("demo/stylesheets")
+    sassDir = file("demo/sass")
+    imagesDir = file("demo/images")
+    javascriptsDir = file("demo/javascripts")
+    gems = ["breakpoint:2.4.2", "chunky_png:1.3.1", "compass:1.0.0.alpha.21", "compass-core:1.0.0.alpha.21",
+            "compass-import-once:1.0.4", "fssm:0.2.10", "multi_json:1.10.1", "rb-fsevent:0.9.4",
+            "rb-inotify:0.9.5", "sass:3.3.10", "sassy-maps:0.4.0", "susy:2.1.3"]
+
+    jrubyDestination = '.jruby'
+
+    JRUBY_HOME = file("$jrubyDestination/jruby-1.7.13")
+    GEMS_DIR = file("$JRUBY_HOME/lib/ruby/gems")
+    JRUBY_JAR = file("$JRUBY_HOME/lib/jruby.jar")
+    if (System.properties['os.name'].toLowerCase().contains('windows')) {
+        JRUBY_BIN = file("$JRUBY_HOME\\bin\\jrubyw.exe")
+        WINDOWS_FLAG = true
+    } else {
+        JRUBY_BIN = file("$JRUBY_HOME/bin/jruby.bash")
+        WINDOWS_FLAG = false
+    }
+}
+
+task updateGemSources(description: "updating gems sources") {
+    def homeDir = System.properties['user.home']
+    def gemrcPath = "$homeDir/.gemrc"
+    def content = """\
+---
+:bulk_threshold: 1000
+:backtrace: false
+:sources:
+- http://rubygems.org
+:update_sources: true
+:verbose: true
+install: --no-rdoc --no-ri --env-shebang
+update: --no-rdoc --no-ri --env-shebang
+"""
+
+    doLast {
+        def file = new File(gemrcPath)
+        file.createNewFile()
+        file.text = content
+    }
+}
+
+def gem_specs(GEMS_DIR, gems) {
+    def gems_dir_path = GEMS_DIR.absoluteFile.toString()
+    return gems.collect ({ String gem ->
+        new File (gems_dir_path.concat("/shared/specifications/").concat(gem.replace(":", "-")).concat(".gemspec"))
+    })
+}
+
+def gemsNotInstalledCorrectly() {
+    def specs = gem_specs(GEMS_DIR, gems)
+    def missing = false
+
+    for (spec in specs) {
+        if (!spec.exists()) {
+            missing = true
+            break
+        }
+    }
+
+    return missing
+}
+
+
+task installSass(
+        description: "installation of jruby and gems for susy grid") {
+
+    onlyIf({ gemsNotInstalledCorrectly() })
+
+    doLast { task ->
+        def jrubyTar = "$temporaryDir/jruby.tar.gz"
+        ant.get(src: 'http://jruby.org.s3.amazonaws.com/downloads/1.7.13/jruby-bin-1.7.13.tar.gz',
+                dest: jrubyTar)
+
+        ant.untar(src: jrubyTar, dest: jrubyDestination, compression: "gzip")
+
+        ant.chmod(file: "${JRUBY_BIN}", perm: '+rx')
+
+        tasks.updateGemSources.execute()
+
+        def gemsToInstall = gems.join(' ')
+        def proc = "$JRUBY_BIN -X-C -S gem install --no-rdoc --no-ri --conservative --ignore-dependencies $gemsToInstall".execute()
+        proc.in.eachLine { line -> println line }
+        proc.err.eachLine { line -> println 'ERROR: ' + line }
+        proc.waitFor()
+        file(jrubyTar).delete()
+        if (proc.exitValue() == 1) {
+            throw new GradleException('error occurred while installing');
+        }
+    }
+
+}
+
+def sassCommand(command) {
+    if (ext.WINDOWS_FLAG) {
+        return "$JRUBY_BIN -X-C -S compass $command $configFile"
+    } else {
+        return "$JRUBY_BIN -X-C -S compass $command --sass-dir $sassDir --css-dir $cssDir --images-dir $imagesDir --javascripts-dir $javascriptsDir --sourcemap --relative-assets"
+
+    }
+}
+
+task compileSass(description: "compile Sass stylesheets") {
+    inputs.files installSass
+    inputs.dir sassDir
+    inputs.dir imagesDir
+    inputs.dir javascriptsDir
+    doLast {
+        def proc = sassCommand("compile").execute()
+        proc.in.eachLine { line -> println line }
+        proc.err.eachLine { line -> println 'ERROR: ' + line }
+        proc.waitFor()
+        if (proc.exitValue() == 1) {
+            throw new GradleException('error occurred while compiling');
+        }
+    }
+
+}
+
+task watchSass(description: "watch Sass stylesheets") {
+    inputs.files installSass
+    inputs.dir sassDir
+    inputs.dir imagesDir
+    inputs.dir javascriptsDir
+
+    doLast { task ->
+        def proc = sassCommand("watch").execute()
+        proc.in.eachLine { line -> println line }
+        proc.err.eachLine { line -> println 'ERROR: ' + line }
+        proc.waitFor()
+        if (proc.exitValue() == 1) {
+            throw new GradleException('error occurred while watching');
+        }
+    }
+}

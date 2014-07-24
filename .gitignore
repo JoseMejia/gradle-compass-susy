@@ -1,0 +1,5 @@
+.gradle/**
+.idea/
+.jruby/
+.sass-cache/
+*.iml
