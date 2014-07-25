@@ -2,11 +2,7 @@ dependencies {
 }
 
 ext {
-    configFile = file("demo") //for-windows
-    cssDir = file("demo/stylesheets")
-    sassDir = file("demo/sass")
-    imagesDir = file("demo/images")
-    javascriptsDir = file("demo/javascripts")
+    compassProject = file("demo") 
     gems = ["breakpoint:2.4.2", "chunky_png:1.3.1", "compass:1.0.0.alpha.21", "compass-core:1.0.0.alpha.21",
             "compass-import-once:1.0.4", "fssm:0.2.10", "multi_json:1.10.1", "rb-fsevent:0.9.4",
             "rb-inotify:0.9.5", "sass:3.3.10", "sassy-maps:0.4.0", "susy:2.1.3"]
@@ -99,19 +95,11 @@ task installSass(
 }
 
 def sassCommand(command) {
-    if (ext.WINDOWS_FLAG) {
-        return "$JRUBY_BIN -X-C -S compass $command $configFile"
-    } else {
-        return "$JRUBY_BIN -X-C -S compass $command --sass-dir $sassDir --css-dir $cssDir --images-dir $imagesDir --javascripts-dir $javascriptsDir --sourcemap --relative-assets"
-
-    }
+        return "$JRUBY_BIN -X-C -S compass $command $compassProject"
 }
 
 task compileSass(description: "compile Sass stylesheets") {
     inputs.files installSass
-    inputs.dir sassDir
-    inputs.dir imagesDir
-    inputs.dir javascriptsDir
     doLast {
         def proc = sassCommand("compile").execute()
         proc.in.eachLine { line -> println line }
@@ -126,9 +114,6 @@ task compileSass(description: "compile Sass stylesheets") {
 
 task watchSass(description: "watch Sass stylesheets") {
     inputs.files installSass
-    inputs.dir sassDir
-    inputs.dir imagesDir
-    inputs.dir javascriptsDir
 
     doLast { task ->
         def proc = sassCommand("watch").execute()
