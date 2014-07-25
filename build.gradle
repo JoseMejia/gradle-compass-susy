@@ -1,13 +1,10 @@
-dependencies {
-}
-
 ext {
-    compassProject = file("demo") 
+    compassProject = file("demo")
+    jrubyDestination = '.jruby'
     gems = ["breakpoint:2.4.2", "chunky_png:1.3.1", "compass:1.0.0.alpha.21", "compass-core:1.0.0.alpha.21",
             "compass-import-once:1.0.4", "fssm:0.2.10", "multi_json:1.10.1", "rb-fsevent:0.9.4",
             "rb-inotify:0.9.5", "sass:3.3.10", "sassy-maps:0.4.0", "susy:2.1.3"]
 
-    jrubyDestination = '.jruby'
 
     JRUBY_HOME = file("$jrubyDestination/jruby-1.7.13")
     GEMS_DIR = file("$JRUBY_HOME/lib/ruby/gems")
@@ -45,8 +42,8 @@ update: --no-rdoc --no-ri --env-shebang
 
 def gem_specs(GEMS_DIR, gems) {
     def gems_dir_path = GEMS_DIR.absoluteFile.toString()
-    return gems.collect ({ String gem ->
-        new File (gems_dir_path.concat("/shared/specifications/").concat(gem.replace(":", "-")).concat(".gemspec"))
+    return gems.collect({ String gem ->
+        new File(gems_dir_path.concat("/shared/specifications/").concat(gem.replace(":", "-")).concat(".gemspec"))
     })
 }
 
@@ -88,14 +85,14 @@ task installSass(
         proc.waitFor()
         file(jrubyTar).delete()
         if (proc.exitValue() == 1) {
-            throw new GradleException('error occurred while installing');
+            throw new GradleException('error occurred while installing')
         }
     }
 
 }
 
 def sassCommand(command) {
-        return "$JRUBY_BIN -X-C -S compass $command $compassProject"
+    return "$JRUBY_BIN -X-C -S compass $command $compassProject"
 }
 
 task compileSass(description: "compile Sass stylesheets") {
@@ -106,7 +103,7 @@ task compileSass(description: "compile Sass stylesheets") {
         proc.err.eachLine { line -> println 'ERROR: ' + line }
         proc.waitFor()
         if (proc.exitValue() == 1) {
-            throw new GradleException('error occurred while compiling');
+            throw new GradleException('error occurred while compiling')
         }
     }
 
@@ -121,7 +118,7 @@ task watchSass(description: "watch Sass stylesheets") {
         proc.err.eachLine { line -> println 'ERROR: ' + line }
         proc.waitFor()
         if (proc.exitValue() == 1) {
-            throw new GradleException('error occurred while watching');
+            throw new GradleException('error occurred while watching')
         }
     }
 }
